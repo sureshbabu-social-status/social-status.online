@@ -1,0 +1,47 @@
+{
+  "name": "social-status-online",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Social Status Online - Professional profiles directory showcasing talented individuals",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:analyze": "vite build --mode analyze",
+    "preview": "vite preview",
+    "lint": "echo 'Linting...'",
+    "type-check": "tsc --noEmit",
+    "deploy": "npm run build && firebase deploy --only hosting",
+    "deploy:message": "npm run build && firebase deploy --only hosting -m",
+    "firebase:login": "firebase login",
+    "firebase:use": "firebase use social-status-online",
+    "firebase:info": "firebase projects:list"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-icons": "^5.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.18",
+    "terser": "^5.44.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  },
+  "keywords": [
+    "profiles",
+    "directory",
+    "portfolio",
+    "social",
+    "professional",
+    "SEO"
+  ],
+  "author": "Social Status Online",
+  "license": "MIT"
+}

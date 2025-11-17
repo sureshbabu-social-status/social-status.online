@@ -1,0 +1,12 @@
+# https://social-status.online
+User-agent: *
+Allow: /
+
+# Disallow admin or private areas (if any)
+# Disallow: /admin/
+
+# Sitemap
+Sitemap: https://social-status.online/sitemap.xml
+
+# Crawl-delay (optional, adjust if needed)
+Crawl-delay: 1
