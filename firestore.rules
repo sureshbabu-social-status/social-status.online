@@ -1,0 +1,186 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ==================== HELPER FUNCTIONS ====================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ==================== PROFILES COLLECTION ====================
+    // Document ID = userId (NOT subdomain!)
+    // Contains embedded subdomainRequest and websiteRequest
+    
+    match /profiles/{userId} {
+      // READ: Public if published, owner always, admin always
+      allow read: if resource == null || 
+                     resource.data.isPublished == true || 
+                     isOwner(userId) || 
+                     isAdmin();
+      
+      // CREATE: Authenticated users only, must match their own userId
+      allow create: if isAuthenticated() && 
+                      userId == request.auth.uid &&
+                      request.resource.data.userId == request.auth.uid &&
+                      validateProfileCreate();
+      
+      // UPDATE: Owner or admin
+      allow update: if (isOwner(userId) || isAdmin()) &&
+                      validateProfileUpdate();
+      
+      // DELETE: Admin only
+      allow delete: if isAdmin();
+    }
+    
+    // ==================== VALIDATION FUNCTIONS ====================
+    
+    function validateProfileCreate() {
+      let data = request.resource.data;
+      return data.keys().hasAll([
+        'userId', 'email', 'name', 'title', 'bio', 'photoURL',
+        'subdomainRequest', 'websiteRequest', 'deployment', 'stats',
+        'isPublished', 'isActive', 'createdAt', 'updatedAt'
+      ]) &&
+      data.userId is string &&
+      data.userId == request.auth.uid &&
+      data.subdomain == null && // New profiles don't have subdomain yet
+      data.subdomainRequest is map &&
+      data.subdomainRequest.status == 'NOT_REQUESTED' &&
+      data.websiteRequest is map &&
+      data.websiteRequest.status == 'NOT_REQUESTED' &&
+      data.deployment is map &&
+      data.deployment.isLive == false &&
+      data.stats is map &&
+      data.isPublished is bool &&
+      data.isActive is bool;
+    }
+    
+    function validateProfileUpdate() {
+      let data = request.resource.data;
+      let existing = resource.data;
+      
+      // Cannot change userId
+      return data.userId == existing.userId &&
+             // Validate types if fields are present
+             (!('name' in data) || (data.name is string && data.name.size() > 0)) &&
+             (!('title' in data) || data.title is string) &&
+             (!('bio' in data) || data.bio is string) &&
+             (!('photoURL' in data) || data.photoURL is string) &&
+             (!('socialLinks' in data) || data.socialLinks is map) &&
+             (!('isPublished' in data) || data.isPublished is bool) &&
+             (!('isActive' in data) || data.isActive is bool) &&
+             // Validate embedded structures
+             (!('subdomainRequest' in data) || (data.subdomainRequest is map && validateSubdomainRequest(data.subdomainRequest))) &&
+             (!('websiteRequest' in data) || (data.websiteRequest is map && validateWebsiteRequest(data.websiteRequest))) &&
+             (!('deployment' in data) || (data.deployment is map && validateDeployment(data.deployment))) &&
+             // Validate optional portfolio fields
+             validateOptionalPortfolioFields(data);
+    }
+    
+    function validateSubdomainRequest(req) {
+      return req.status in ['NOT_REQUESTED', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'UNDER_REVIEW', 'APPROVED', 'DECLINED'];
+    }
+    
+    function validateWebsiteRequest(req) {
+      return req.status in ['NOT_REQUESTED', 'PAYMENT_PENDING', 'PAYMENT_COMPLETED', 'UNDER_REVIEW', 'APPROVED', 'DECLINED', 'DEPLOYED'];
+    }
+    
+    function validateDeployment(dep) {
+      return dep.isLive is bool;
+    }
+    
+    function validateOptionalPortfolioFields(data) {
+      return (!('projects' in data) || data.projects is list) &&
+             (!('enhancedSkills' in data) || data.enhancedSkills is list) &&
+             (!('skills' in data) || data.skills is list) &&
+             (!('achievements' in data) || data.achievements is list) &&
+             (!('certifications' in data) || data.certifications is list) &&
+             (!('testimonials' in data) || data.testimonials is list) &&
+             (!('hobbies' in data) || data.hobbies is list) &&
+             (!('goals' in data) || data.goals is list) &&
+             (!('seoConfig' in data) || data.seoConfig is map) &&
+             (!('themeConfig' in data) || data.themeConfig is map) &&
+             (!('analytics' in data) || data.analytics is map) &&
+             (!('completionPercentage' in data) || (data.completionPercentage is number && data.completionPercentage >= 0 && data.completionPercentage <= 100)) &&
+             (!('views' in data) || data.views is number);
+    }
+    
+    // ==================== PAYMENTS COLLECTION ====================
+    // Separate collection for payment records
+    // Cloud Functions only
+    
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && 
+                     (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false; // Only Cloud Functions can write
+    }
+    
+    // ==================== NOTIFICATIONS COLLECTION ====================
+    
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // Users can only mark as read
+      allow update: if isAuthenticated() && 
+                       resource.data.userId == request.auth.uid &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'readAt']);
+      
+      allow create, delete: if false; // Only backend creates/deletes
+    }
+    
+    // ==================== ADMIN LOGS COLLECTION ====================
+    
+    match /admin-logs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Only Cloud Functions can write
+    }
+    
+    // ==================== LEGACY COLLECTIONS (DEPRECATED) ====================
+    // These collections are no longer used but kept for backward compatibility
+    
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /subdomain_requests/{requestId} {
+      // DEPRECATED: Use profiles/{userId}.subdomainRequest instead
+      allow read, write: if false;
+    }
+    
+    match /website-requests/{requestId} {
+      // DEPRECATED: Use profiles/{userId}.websiteRequest instead
+      allow read, write: if false;
+    }
+    
+    match /deployed-sites/{siteId} {
+      // DEPRECATED: Use profiles/{userId}.deployment instead
+      allow read, write: if false;
+    }
+    
+    // ==================== ANALYTICS ====================
+    
+    match /analytics/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAuthenticated();
+    }
+    
+    // ==================== DEFAULT DENY ====================
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

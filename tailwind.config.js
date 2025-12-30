@@ -4,9 +4,11 @@ export default {
     './index.html',
     './index.tsx',
     './App.tsx',
+    './AppRoutes.tsx',
     './constants.tsx',
     './components/**/*.{js,ts,jsx,tsx}',
     './hooks/**/*.{js,ts,jsx,tsx}',
+    './pages/**/*.{js,ts,jsx,tsx}',
   ],
   darkMode: 'class',
   theme: {

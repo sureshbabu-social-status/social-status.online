@@ -82,12 +82,22 @@ export const SITE_CONFIG = {
     'developers portfolio',
     'tech professionals',
     'career showcase',
+    'social status online',
+    'professional networking',
+    'portfolio directory',
   ],
   contact: {
     email: 'hello@social-status.online',
+    location: 'Karnataka, India',
   },
   social: {
     twitter: '@socialstatus',
     linkedin: 'company/social-status-online',
+  },
+  legal: {
+    companyName: 'Social Status Online',
+    operatedBy: 'Suresh Babu Gogula',
+    jurisdiction: 'Karnataka, India',
+    establishedYear: 2025,
   },
 };
